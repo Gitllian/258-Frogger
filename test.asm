@@ -35,32 +35,33 @@
 	Blue:			.word 0x00000fff
 	White:			.word 0x00ffffff
 	Purple:			.word 0x00ff0fff
-	Obstacle:		.word 0x00ccaadd
+	VehicleColour:		.word 0x00ccaadd
 	Black:			.word 0x00000000
 	Colour1:		.word 0x000aafff
 	Colour2:		.word 0xbbb00fff
 	Colour3:		.word 0xdddaa000
 	Colour4:		.word 0x0cddaaff
 	Colour5:		.word 0x00aaaaaa
+	LogColour:		.word 0xdddaa000
 	
 	WaterRegionLowerY:	.word 12
 	WaterRegionUpperY:	.word 8
 	
 	FrogX:			.space 4
 	FrogY:			.space 4
-	VehicleLocX:		.space 32
-	VehicleLocY:		.space 32
+	ObstacleLocX:		.space 32
+	ObstacleLocY:		.space 32
 	LogLocX:		.space 16
 	LogLocY:		.space 16
 	VehicleSpeed:		.word 1
+	GoalRegion:		.space 20
 	
 	Collision:		.space 4096
 .text
   main:
-  	li $s7, 4 #lives remaining
-  
+  	li $s7, 3 #lives remaining
+  	li $s6, 5 #Goal regions left
   	ResetGame:
-  	subi $s7, $s7, 1
   	beq $s7, 0, EndGame
   	
   	#Initialize frog coordinate
@@ -72,36 +73,36 @@
 	li $t2, 0			# Array index
 	li $t1, 20			# top left vehicle Y 
 	li $t0, 0			# top left vehicle X
-	jal SaveVehicleXY
+	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	li $t1, 20			# top right vehicle Y 
 	li $t0, 16			# top right vehicle X
-	jal SaveVehicleXY
+	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	li $t1, 24			# bottom left vehicle Y 
 	li $t0, 2			# bottom left vehicle X
-	jal SaveVehicleXY
+	jal SaveObstacleXY
 	addi $t2, $t2, 1	
 	li $t1, 24			# bottom right vehicle Y 
 	li $t0, 18			# bottom right vehicle X
-	jal SaveVehicleXY
+	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	# Initialize the coordinates of Logs
 	li $t1, 8			# top left log Y 
 	li $t0, 0			# top left log X
-	jal SaveVehicleXY
+	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	li $t1, 8			# top right log Y 
 	li $t0, 16			# top right log X
-	jal SaveVehicleXY
+	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	li $t1, 12			# bottom left log Y 
-	li $t0, 2			# bottom left log X
-	jal SaveVehicleXY
+	li $t0, 0			# bottom left log X
+	jal SaveObstacleXY
 	addi $t2, $t2, 1	
 	li $t1, 12			# bottom right log Y 
-	li $t0, 18			# bottom right log X
-	jal SaveVehicleXY
+	li $t0, 16			# bottom right log X
+	jal SaveObstacleXY
 	
 	
 	UpdateEverySecond:
@@ -113,15 +114,22 @@
 		jal RedrawAllGraphics
 		
 		jal CheckFrogCollision
-		beq $t2, 1, ResetGame
+		beq $t2, 1, CollisionReset
 		jal CheckFrogWin
-		bge $t6, 1, EndGame
+		bge $t6, 1, WinGoalRegion
 		
 		li $v0, 32
 		li $a0, 500
 		syscall
 		j UpdateEverySecond
-	
+	WinGoalRegion:
+		subi $s6, $s6, 1
+		jal FillGoalRegion
+		beq $s6, 0, EndGame
+		j ResetGame
+	CollisionReset:
+		subi $s7, $s7, 1
+		j ResetGame
 	EndGame:
 	li $v0, 10
 	syscall
@@ -242,6 +250,10 @@ DrawRegion:
 			jal SaveAllTRegisters
 			add $t1, $t0, $zero
 			add $t0, $s0, $zero
+			
+			li $s6, 32
+			div $t0, $s6
+			mfhi $t0
 			jal TranslateCoord
 			
 			sw $t2, 0($t9)
@@ -404,19 +416,19 @@ UpdateMoveDown:
 		sw $s6, FrogY($zero)
 		j ReturnFromFunction	
 		
-SaveVehicleXY:
+SaveObstacleXY:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
-		# inputs: t0 X, t1 Y, t2 vehicle index
+		# inputs: t0 X, t1 Y, t2 Obstacle index
 		li $s0, 4
 		mult $t2, $s0
 		mflo $s1
-		sw $t1, VehicleLocY($s1)	# save coordinates into arrays
-		sw $t0, VehicleLocX($s1)
+		sw $t1, ObstacleLocY($s1)	# save coordinates into arrays
+		sw $t0, ObstacleLocX($s1)
 		j ReturnFromFunction
 		
-LoadVehicleXY:
+LoadObstacleXY:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
@@ -425,8 +437,8 @@ LoadVehicleXY:
 		li $s0, 4
 		mult $t2, $s0
 		mflo $s1
-		lw $t1, VehicleLocY($s1)
-		lw $t0, VehicleLocX($s1)
+		lw $t1, ObstacleLocY($s1)
+		lw $t0, ObstacleLocX($s1)
 		j ReturnFromFunction
 		
 DrawAllVehicles:
@@ -435,11 +447,27 @@ DrawAllVehicles:
 	jal SaveAllSRegisters
 		li $t2, 0
 		DrawNextVehicle:
-		bgt $t2, 7, ReturnFromFunction
-			jal LoadVehicleXY
+		bgt $t2, 3, ReturnFromFunction
+			jal LoadObstacleXY
+			jal SaveAllTRegisters
 			jal DrawVehicle
+			jal RestoreAllTRegisters
 		addi $t2, $t2, 1
 		j DrawNextVehicle
+		
+DrawAllLogs:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+		li $t2, 4
+		DrawNextLog:
+		bgt $t2, 7, ReturnFromFunction
+			jal LoadObstacleXY
+			jal SaveAllTRegisters
+			jal DrawLog
+			jal RestoreAllTRegisters
+		addi $t2, $t2, 1
+		j DrawNextLog
 DrawVehicle:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
@@ -448,38 +476,33 @@ DrawVehicle:
 		add $s1,$zero, $t1
 		li $s6, 32
 		# input 	t0 Vehicle X coordinate, t1 Vehicle Y Coordinate
-		lw $s3, Obstacle
-		li $s5, 0	#relative y coordinate
-		RepeatFor4Rows:
-		bgt $s5, 3, ReturnFromFunction
-			li $s4, 0	#relative x coordinate
-			Draw7PixelsInRow:
-			bgt $s4, 4, ExitDraw7PixelsInRow
-			
-			jal SaveAllTRegisters
-				add $t0, $s4, $s0
-				add $t1, $s5, $s1
-			
-				div $t0, $s6
-				mfhi $t0
-				div $t1, $s6
-				mfhi $t1
-
-				jal ReadFromCollisionArray
-				addi $t2, $t2,1
-				li $s7, 2
-				div $t2, $s7
-				mfhi $t2
-				jal WriteToCollisionArray
-				jal TranslateCoord
-				sw $s3, 0($t9)
-			jal RestoreAllTRegisters
-						
-			addi $s4, $s4,1
-			j Draw7PixelsInRow
-			ExitDraw7PixelsInRow:	
-		addi $s5, $s5, 1
-		j RepeatFor4Rows
+		lw $t2, VehicleColour
+		add $t3, $t0, $zero
+		add $t0, $t1, $zero
+		addi $t1, $t1, 4
+		addi $t4, $t3, 5
+		
+		li $t5, 1
+		jal DrawRegion
+		j ReturnFromFunction
+		
+DrawLog:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+		add $s0, $zero, $t0
+		add $s1,$zero, $t1
+		li $s6, 32
+		# input 	t0 Log X coordinate, t1 log Y Coordinate
+		lw $t2, LogColour
+		add $t3, $t0, $zero
+		add $t0, $t1, $zero
+		addi $t1, $t1, 4
+		addi $t4, $t3, 10
+		
+		li $t5, 0
+		jal DrawRegion
+		j ReturnFromFunction
 			
 MoveAllVehiclesX:
 	addi $sp, $sp, -4
@@ -492,12 +515,12 @@ MoveAllVehiclesX:
 	UpdateVehicleX:
 		bgt $t2, 7, ReturnFromFunction
 		
-		jal LoadVehicleXY
+		jal LoadObstacleXY
 		add $t0, $s1, $t0
 		blt $t0, 0, SetXtoMax
 		div $t0, $s6
 		mfhi $t0
-		jal SaveVehicleXY
+		jal SaveObstacleXY
 		
 		addi $t2, $t2, 1
 		addi $s5, $s5, 1
@@ -505,7 +528,7 @@ MoveAllVehiclesX:
 		j UpdateVehicleX
 		SetXtoMax:
 			addi $t0, $zero,32
-			jal SaveVehicleXY
+			jal SaveObstacleXY
 		j UpdateVehicleX
 		SetSecondCounterZero:
 			li $s5, 0
@@ -516,6 +539,7 @@ RedrawAllGraphics:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
+		
 		li $t0, 0
 		li $t1, 8
 		lw $t2, Yellow
@@ -625,7 +649,10 @@ RedrawAllGraphics:
 		lw $t2, Purple
 		jal DrawRegion	#StartRegion
 		
+		jal FillGoalRegion
+		
 		jal DrawAllVehicles
+		jal DrawAllLogs
 		jal DrawFrog
 	
 	j ReturnFromFunction
@@ -730,12 +757,67 @@ CheckFrogWin:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
-		# 
+		# Check if frog Y at goal region and save 1 at the index of that goal region in the array
+		# Return boolean if any goal region is won
 		li $t6, 0
-		lw $s0, FrogY($zero)
-		bge $s0, 8, ReturnFromFunction
-		li $s1, 6
-		div $s0, $s1
-		mflo $t6
-		addi $t6, $t6,1
+		li $s0, 0
+		li $s1, 0
+		lw $s0, FrogY($zero)		# s0 = forg Y 
+		lw $s1, FrogX($zero)		# s1 = frog X
+		bge $s0, 8, ReturnFromFunction	# if the frog Y is lower than 8, game will not win
+		li $s2, 6
+		div $s1, $s2
+		mflo $t6			# t6 has the index of goal region 
+		li $s3, 4
+		mult $t6, $s3
+		mflo $s5 			# s5 stores the goal region index times 4 for storing into array
+		li $s2, 1			# t6 still store the goal region index for drawing
+		sw $s2, GoalRegion($s5)
+		li $t6, 1			# return 1 to t6
 		j ReturnFromFunction	
+
+FillGoalRegion:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+	jal SaveAllTRegisters
+		# Input $t6 which goal region reached 
+		li $s0, 0			# region loop index
+		CheckGoalRegionArray:
+		bgt $s0, 4, ExitFillGoalRegion
+			li $s1, 4
+			mult $s1, $s0		# get address in the array
+			mflo $s3
+	
+			lw $s2, GoalRegion($s3)	# load the value in the array
+			beq $s2, 1, FillRegion	# if this region is 1, meaning reached before
+			addi $s0, $s0, 1	# not 1, check the next region
+			j CheckGoalRegionArray	
+			
+		FillRegion:			# fill the region with yellow colour and mark the collision to 1
+			li $t0, 0		# initialize all required registers for draw region
+			li $t1, 8
+			lw $t2, Yellow
+			li $t3, 0		# strating column index
+			li $t4, 0		# end column index
+			li $t5, 1		# value to write into collision array
+			li $s5, 6		# value to multiplay
+		
+			# s0 has the index, starting row = (index) * 6 + 1, end row = starting row + 5
+			# start column = 0, end column = 8
+			mult $s0, $s5
+			mflo $t3
+			addi $t3, $t3, 1	# starting column
+			add $t4, $t3, 5		# end column
+			jal DrawRegion
+			
+			# check the next region
+			addi $s0, $s0, 1
+			j CheckGoalRegionArray
+		
+		ExitFillGoalRegion:
+			jal RestoreAllTRegisters
+			j ReturnFromFunction
+		
+	
+	

@@ -43,25 +43,42 @@
 	Colour4:		.word 0x0cddaaff
 	Colour5:		.word 0x00aaaaaa
 	LogColour:		.word 0xdddaa000
+	HeartColour:		.word 0xffffffff
 	
 	WaterRegionLowerY:	.word 12
 	WaterRegionUpperY:	.word 8
 	
 	FrogX:			.space 4
 	FrogY:			.space 4
-	ObstacleLocX:		.space 32
-	ObstacleLocY:		.space 32
+	ObstacleLocX:		.space 48
+	ObstacleLocY:		.space 48
 	LogLocX:		.space 16
 	LogLocY:		.space 16
 	VehicleSpeed:		.word 1
+	ObstacleSpeed:		.space 16
 	GoalRegion:		.space 20
+	NumberOfLives:		.space 4
+	CurrentLevel:		.word 4
 	
-	Collision:		.space 4096
+	
+	LivesLeft3:		.asciiz "You have 3 lives left!\n"
+	LivesLeft2:		.asciiz "You have 2 lives left!\n"
+	LivesLeft1:		.asciiz "You have 1 live left!\n"
+	YouDied:		.asciiz "Your frog died!\n"
+	Collision:		.space 5120
 .text
   main:
-  	li $s7, 3 #lives remaining
-  	li $s6, 5 #Goal regions left
+  	li $s7, 3 # lives remaining
+  	li $s6, 5 # Goal regions left
+  	li $s5, 1 # current Level 
+  	sw $s5, CurrentLevel($zero)
+  	li $s0, 1	# Odd row speed in level 1
+  	li $s1, 2	# even row speed in level 1
+  	li $s2, 2	# odd row speed in level 2
+  	li $s4, 3	# even row speed in level 2
   	ResetGame:
+  	sw $s7, NumberOfLives($zero)
+  	jal PrintMessages
   	beq $s7, 0, EndGame
   	
   	#Initialize frog coordinate
@@ -69,6 +86,7 @@
   	li $s1, 28
   	sw $s0, FrogX($zero)
   	sw $s1, FrogY($zero)
+	
 	# Initialize the coordinates of Vehicles
 	li $t2, 0			# Array index
 	li $t1, 20			# top left vehicle Y 
@@ -104,8 +122,75 @@
 	li $t0, 16			# bottom right log X
 	jal SaveObstacleXY
 	
+	lw $s5, CurrentLevel($zero)
+  	bne $s5, 2, UpdateEverySecond	# if not second level, junp to updateeverysecond
+  	#update initial frog y for second level 
+	addi $s1, $s1, 8
+	sw $s1, FrogY($zero)
+	
+	li $t2, 0			# obstacle index
+	li $t1, 24			# top left car Y 
+	li $t0, 0			# top left car X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 24			# top right car Y 
+	li $t0, 16			# top right car X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 28			# medium left car Y 
+	li $t0, 4			# medium left car X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 28			# medium right car Y 
+	li $t0, 20			# medium right car X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 32			# bottom left car Y 
+	li $t0, 0			# bottom left car X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 32			# bottom right car Y 
+	li $t0, 16			# bottom right car X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 8			# top left log Y 
+	li $t0, 0			# top left log X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 8			# top right log Y 
+	li $t0, 16			# top right log X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 12			# medium left log Y 
+	li $t0, 4			# medium left log X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 12			# medium right log Y 
+	li $t0, 20			# medium right log X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 16			# bottom left log Y 
+	li $t0, 0			# botttom left log X
+	jal SaveObstacleXY
+	
+	addi $t2, $t2, 1	
+	li $t1, 16			# bottom right log Y 
+	li $t0, 16			# bottom right log X
+	jal SaveObstacleXY
+	
 	
 	UpdateEverySecond:
+		
 		jal ClearCollisionArray
 	
 		jal MoveOddRowObstacles
@@ -126,12 +211,18 @@
 	WinGoalRegion:
 		subi $s6, $s6, 1
 		jal FillGoalRegion
-		beq $s6, 0, EndGame
+		beq $s6, 0, SecondLevel
 		j ResetGame
 	CollisionReset:
 		subi $s7, $s7, 1
 		j ResetGame
+	SecondLevel:
+		addi $s5, $s5, 1
+		sw $s5, CurrentLevel($zero)
+		bgt $s5, 2, EndGame
+		j ResetGame
 	EndGame:
+	jal RedrawAllGraphics
 	li $v0, 10
 	syscall
 		
@@ -336,7 +427,7 @@ MoveFrogInWater:
 		MoveToLeft:
 			ble $s0, 0, ReturnFromFunction
 		
-			subi $s0, $s0, 1
+			subi $s0, $s0, 2
 			sw $s0, FrogX($zero)
 		
 			j ReturnFromFunction
@@ -447,6 +538,8 @@ DrawAllVehicles:
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
 		li $t2, 0
+		lw $s5, CurrentLevel($zero)
+		beq $s5, 2, DrawSecondLevelVehicle
 		DrawNextVehicle:
 		bgt $t2, 3, ReturnFromFunction
 			jal LoadObstacleXY
@@ -455,11 +548,22 @@ DrawAllVehicles:
 			jal RestoreAllTRegisters
 		addi $t2, $t2, 1
 		j DrawNextVehicle
+		DrawSecondLevelVehicle:
+			bgt $t2, 5, ReturnFromFunction
+			jal LoadObstacleXY
+			jal SaveAllTRegisters
+			jal DrawVehicle
+			jal RestoreAllTRegisters
+			addi $t2, $t2, 1
+			j DrawSecondLevelVehicle
 		
 DrawAllLogs:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
+		li $t2, 6
+		lw $s5, CurrentLevel($zero)
+		beq $s5, 2, DrawSecondLevelLog
 		li $t2, 4
 		DrawNextLog:
 		bgt $t2, 7, ReturnFromFunction
@@ -469,6 +573,15 @@ DrawAllLogs:
 			jal RestoreAllTRegisters
 		addi $t2, $t2, 1
 		j DrawNextLog
+		DrawSecondLevelLog:
+		bgt $t2, 11, ReturnFromFunction
+			jal LoadObstacleXY
+			jal SaveAllTRegisters
+			jal DrawLog
+			jal RestoreAllTRegisters
+		addi $t2, $t2, 1
+		j DrawSecondLevelLog
+		
 DrawVehicle:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
@@ -512,10 +625,10 @@ MoveOddRowObstacles:
 		lw $s1, VehicleSpeed
 		li $s2, 0		# First Counter from 0 to 1
 		li $s6, 32
-		li $s5, 0		# Second counter from {0, 4}
+		li $s5, 0		# Second counter from {0, 4, 8}
 	UpdateOddRowObstaclesX:
 		bgt $s2, 1, IncrementSecondCounter
-		bgt $s5, 6, ReturnFromFunction
+		bgt $s5, 10, ReturnFromFunction
 		add $t2, $s2, $s5	# t2 = index
 		jal LoadObstacleXY
 		add $t0, $s1, $t0
@@ -543,10 +656,10 @@ MoveEvenRowObstacles:
 		subi $s1, $s1, 1
 		li $s2, 0		# First Counter from 0 to 1
 		li $s6, 32
-		li $s5, 2		# Second counter from {2, 6}
+		li $s5, 2		# Second counter from {2, 6, 10}
 	UpdateEvenRowObstaclesX:
 		bgt $s2, 1, IncrementSecondCounter2
-		bgt $s5, 8, ReturnFromFunction
+		bgt $s5, 12, ReturnFromFunction
 		add $t2, $s2, $s5	# t2 = index
 		jal LoadObstacleXY
 		add $t0, $s1, $t0
@@ -569,8 +682,17 @@ RedrawAllGraphics:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
+		lw $s5, CurrentLevel($zero)	# s5 current level
 		
 		li $t0, 0
+		li $t1, 4
+		lw $t2, Black
+		li $t3, 0
+		li $t4, 32
+		li $t5, 0
+		jal DrawRegion	#GoalRegion Board
+		
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Yellow
 		li $t3, 0
@@ -579,7 +701,7 @@ RedrawAllGraphics:
 		jal DrawRegion	#GoalRegion Board
 		
 		
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Colour1
 		li $t3, 1
@@ -587,7 +709,7 @@ RedrawAllGraphics:
 		li $t5, 0
 		jal DrawRegion	#GoalRegion Slot1
 		
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Yellow
 		li $t3, 6
@@ -595,7 +717,7 @@ RedrawAllGraphics:
 		li $t5, 1
 		jal DrawRegion	#GoalRegion Board
 		
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Colour2
 		li $t3, 7
@@ -603,7 +725,7 @@ RedrawAllGraphics:
 		li $t5, 0
 		jal DrawRegion	#GoalRegion Slot2
 		
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Yellow
 		li $t3, 12
@@ -611,7 +733,7 @@ RedrawAllGraphics:
 		li $t5, 1
 		jal DrawRegion	#GoalRegion Board
 	
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Colour3
 		li $t3, 13
@@ -619,7 +741,7 @@ RedrawAllGraphics:
 		li $t5, 0
 		jal DrawRegion	#GoalRegion Slot3
 		
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Yellow
 		li $t3, 18
@@ -627,7 +749,7 @@ RedrawAllGraphics:
 		li $t5, 1
 		jal DrawRegion	#GoalRegion Board
 
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Colour4
 		li $t3, 19
@@ -635,7 +757,7 @@ RedrawAllGraphics:
 		li $t5, 0
 		jal DrawRegion	#GoalRegion Slot4
 		
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Yellow
 		li $t3, 24
@@ -643,7 +765,7 @@ RedrawAllGraphics:
 		li $t5, 1
 		jal DrawRegion	#GoalRegion Board
 
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Colour5
 		li $t3, 25
@@ -651,7 +773,7 @@ RedrawAllGraphics:
 		li $t5, 0
 		jal DrawRegion	#GoalRegion Slot5
 		
-		li $t0, 0
+		li $t0, 4
 		li $t1, 8
 		lw $t2, Yellow
 		li $t3, 30
@@ -659,6 +781,7 @@ RedrawAllGraphics:
 		li $t5, 1
 		jal DrawRegion	#GoalRegion Board
 		
+		beq $s5, 2, DrawSecondLevel
 		li $t1, 16
 		lw $t2, Blue
 		li $t3, 0
@@ -680,6 +803,37 @@ RedrawAllGraphics:
 		jal DrawRegion	#StartRegion
 		
 		jal FillGoalRegion
+		jal DrawAllLives
+		
+		jal DrawAllVehicles
+		jal DrawAllLogs
+		jal DrawFrog
+	
+	j ReturnFromFunction
+		
+		DrawSecondLevel:
+			li $t1, 20
+			lw $t2, Blue
+			li $t3, 0
+			li $t4, 32
+			li $t5, 1
+			jal DrawRegion	#WaterRegion
+			
+			li $t1, 24
+			lw $t2, Green
+			li $t5, 0
+			jal DrawRegion	#SafeRegion
+			
+			li $t1, 36
+			lw $t2, White
+			jal DrawRegion	#RoadRegion
+			
+			li $t1, 40
+			lw $t2, Purple
+			jal DrawRegion	#StartRegion
+		
+		jal FillGoalRegion
+		jal DrawAllLives
 		
 		jal DrawAllVehicles
 		jal DrawAllLogs
@@ -748,7 +902,7 @@ ClearCollisionArray:
 		li $s0, 0
 		li $s1, 0
 		ClearNextSlot:
-		bgt $s0, 1024, ReturnFromFunction
+		bgt $s0, 1280, ReturnFromFunction
 		
 		sw $zero, Collision($s1)
 		addi $s0, $s0, 1
@@ -825,7 +979,7 @@ FillGoalRegion:
 			j CheckGoalRegionArray	
 			
 		FillRegion:			# fill the region with yellow colour and mark the collision to 1
-			li $t0, 0		# initialize all required registers for draw region
+			li $t0, 4		# initialize all required registers for draw region
 			li $t1, 8
 			lw $t2, Yellow
 			li $t3, 0		# strating column index
@@ -848,6 +1002,101 @@ FillGoalRegion:
 		ExitFillGoalRegion:
 			jal RestoreAllTRegisters
 			j ReturnFromFunction
+	
+DrawAllLives:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+		li $s0, 0
+		lw $s1, NumberOfLives($zero)
+		li $t0, 0
+		li $t1, 0
+		DrawOneLive:
+		bge $s0, $s1, ReturnFromFunction
+		jal SaveAllTRegisters
+		jal DrawLive
+		jal RestoreAllTRegisters
+		addi $t0, $t0, 6
+		addi $s0, $s0, 1
+		j DrawOneLive
+	
+DrawLive:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+		# input starting t0 X, t1 Y
+		lw $t2, HeartColour
+		addi $t0, $t0, 1	# Draw first line
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		
+		subi $t0, $t0, 3	# Draw second line
+		addi $t1, $t1, 1
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		
+		subi $t0, $t0, 3	# Draw third line
+		addi $t1, $t1, 1
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		
+		subi $t0, $t0, 1	# Draw fourth line
+		addi $t1, $t1, 1
+		jal DrawPixel
+		
+		j ReturnFromFunction
+		
+		
+DrawPixel:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+		# input $t0, $t1 as coordinates, $t2, colour
+		jal TranslateCoord
+		sw $t2, 0($t9) 		
+		j ReturnFromFunction
+PrintMessages:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+		# t9 input = number of lives left
+		lw $s0, NumberOfLives($zero)
+		beq $s0, 0, Zerolive
+		beq $s0, 1, Onelive
+		beq $s0, 2, Twolives
+		beq $s0, 3, Threelives
+		j ReturnFromFunction
+		Zerolive:
+			li $v0, 4
+			la $a0, YouDied
+			syscall
+			j ReturnFromFunction
+		Threelives:
+			li $v0, 4
+			la $a0, LivesLeft3
+			syscall
+			j ReturnFromFunction
+		Twolives:
+			li $v0, 4
+			la $a0, LivesLeft2
+			syscall
+			j ReturnFromFunction
+		Onelive:
+			li $v0, 4
+			la $a0, LivesLeft1
+			syscall
+			j ReturnFromFunction
 		
 	
-	
+		

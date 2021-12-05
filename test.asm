@@ -108,7 +108,8 @@
 	UpdateEverySecond:
 		jal ClearCollisionArray
 	
-		jal MoveAllVehiclesX
+		jal MoveOddRowObstacles
+		jal MoveEvenRowObstacles
 		jal UpdateFrogXY
 		
 		jal RedrawAllGraphics
@@ -504,36 +505,65 @@ DrawLog:
 		jal DrawRegion
 		j ReturnFromFunction
 			
-MoveAllVehiclesX:
+MoveOddRowObstacles:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
-		lw $s1, VehicleSpeed	
-		li $t2, 0		# vehicle index
+		lw $s1, VehicleSpeed
+		li $s2, 0		# First Counter from 0 to 1
 		li $s6, 32
-		li $s5, 0
-	UpdateVehicleX:
-		bgt $t2, 7, ReturnFromFunction
-		
+		li $s5, 0		# Second counter from {0, 4}
+	UpdateOddRowObstaclesX:
+		bgt $s2, 1, IncrementSecondCounter
+		bgt $s5, 6, ReturnFromFunction
+		add $t2, $s2, $s5	# t2 = index
 		jal LoadObstacleXY
 		add $t0, $s1, $t0
-		blt $t0, 0, SetXtoMax
 		div $t0, $s6
 		mfhi $t0
+		bge $t0, 32, NormalizeXBy32
 		jal SaveObstacleXY
 		
-		addi $t2, $t2, 1
-		addi $s5, $s5, 1
-		bgt $s5, 1, SetSecondCounterZero
-		j UpdateVehicleX
-		SetXtoMax:
-			addi $t0, $zero,32
-			jal SaveObstacleXY
-		j UpdateVehicleX
-		SetSecondCounterZero:
-			li $s5, 0
-			sub $s1, $zero, $s1
-		j UpdateVehicleX
+		addi $s2,$s2,1
+		j UpdateOddRowObstaclesX
+		NormalizeXBy32:
+			subi $t0, $t0, 32
+			jr $ra
+		IncrementSecondCounter:
+			addi $s5,$s5,4
+			li $s2, 0
+			j UpdateOddRowObstaclesX
+			
+MoveEvenRowObstacles:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+		lw $s1, VehicleSpeed
+		sub $s1, $zero, $s1
+		subi $s1, $s1, 1
+		li $s2, 0		# First Counter from 0 to 1
+		li $s6, 32
+		li $s5, 2		# Second counter from {2, 6}
+	UpdateEvenRowObstaclesX:
+		bgt $s2, 1, IncrementSecondCounter2
+		bgt $s5, 8, ReturnFromFunction
+		add $t2, $s2, $s5	# t2 = index
+		jal LoadObstacleXY
+		add $t0, $s1, $t0
+		div $t0, $s6
+		mfhi $t0
+		blt $t0, 0, NormalizeXBy0
+		jal SaveObstacleXY
+		
+		addi $s2,$s2,1
+		j UpdateEvenRowObstaclesX
+		NormalizeXBy0:
+			addi $t0, $t0, 32
+			jr $ra
+		IncrementSecondCounter2:
+			addi $s5,$s5,4
+			li $s2, 0
+			j UpdateEvenRowObstaclesX
 		
 RedrawAllGraphics:
 	addi $sp, $sp, -4

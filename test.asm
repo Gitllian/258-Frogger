@@ -49,11 +49,12 @@
 	WaterRegionMediumY:	.word 12
 	WaterRegionUpperY:	.word 8
 	
+	FrogSpeed:		.space 8
 	FrogX:			.space 4
 	FrogY:			.space 4
 	ObstacleLocX:		.space 48
 	ObstacleLocY:		.space 48
-	FrogSpeed:		.space 8
+
 	ObstacleSpeed:		.space 16
 	GoalRegion:		.space 20
 	NumberOfLives:		.space 4
@@ -69,7 +70,7 @@
   main:
   	li $s7, 3 # lives remaining
   	li $s6, 5 # Goal regions left
-  	li $s5, 2 # current Level 
+  	li $s5, 1 # current Level 
   	sw $s5, CurrentLevel($zero)
   	li $s1, 0	# index in speed array
   	li $s0, 1	# Odd row speed in level 1
@@ -198,6 +199,7 @@
 	li $t1, 16			# bottom right log Y 
 	li $t0, 16			# bottom right log X
 	jal SaveObstacleXY
+	
 	
 	li $s0, 2
 	sw $s0, FrogSpeed($zero)
@@ -501,29 +503,21 @@ UpdateMoveLeft:
 			li $s3, 4		# Level 2 Speed
 			lw $s2, FrogSpeed($s3)
 			sub $s0, $s0, $s2
-			blt, $s0, 0, SetXToZeroLeft
-				sw $s0, FrogX($zero)
-				j ReturnFromFunction
-				
-			SetXToZeroLeft:
-				li $s0, 0 
-				sw $s0, FrogX($zero)
-		
-				j ReturnFromFunction
+			ble $s0, 0, SetToMin
+			sw $s0, FrogX($zero)
+			j ReturnFromFunction
 		
 		Level1SpeedLeft:
+			
+			subi $s0, $s0, 2
+			ble $s0, 0, SetToMin
+			sw $s0, FrogX($zero)
+			j ReturnFromFunction
+		SetToMin:
+			li $s0, 0
+			sw $s0, FrogX($zero)
+			j ReturnFromFunction
 		
-			lw $s2, FrogSpeed($zero)
-			sub $s0, $s0, $s2
-			blt, $s0, 0, SetXToZeroLeft2
-				sw $s0, FrogX($zero)
-				j ReturnFromFunction
-				
-			SetXToZeroLeft2:
-				li $s0, 0 
-				sw $s0, FrogX($zero)
-		
-				j ReturnFromFunction
 				
 UpdateMoveRight:
 	addi $sp, $sp, -4
@@ -532,36 +526,25 @@ UpdateMoveRight:
 		# input $t1 if true
 		blt $t1, 1, ReturnFromFunction
 		lw $s0, FrogX($zero)
-	
-		bge $s0, 28, ReturnFromFunction
 		
 		lw $s5, CurrentLevel($zero)	# Check the current level
 		beq $s5, 1, Level1SpeedRight
 			li $s3, 4		# Level 2 Speed
 			lw $s2, FrogSpeed($s3)
 			add $s0, $s0, $s2
-			bgt, $s0, 28, SetXToMaxRight
+			bge $s0, 28, SetToMax
 				sw $s0, FrogX($zero)
-				j ReturnFromFunction
-				
-			SetXToMaxRight:
-				li $s0, 28
-				sw $s0, FrogX($zero)
-		
 				j ReturnFromFunction
 		Level1SpeedRight:
-		
-			lw $s2, FrogSpeed($zero)
-			add $s0, $s0, $s2
-			bgt, $s0, 28, SetXToMaxRight2
+			# lw $s2, FrogSpeed($zero)
+			addi $s0, $s0, 2
+			bge $s0, 28, SetToMax
 				sw $s0, FrogX($zero)
 				j ReturnFromFunction
-				
-			SetXToMaxRight2:
-				li $s0, 28
-				sw $s0, FrogX($zero)
-		
-				j ReturnFromFunction
+		SetToMax:
+			li $s0, 28
+			sw $s0, FrogX($zero)
+			j ReturnFromFunction
 UpdateMoveUp:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
@@ -740,7 +723,10 @@ MoveOddRowObstacles:
 		j UpdateOddRowObstaclesX
 		NormalizeXBy32:
 			subi $t0, $t0, 32
-			jr $ra
+			jal SaveObstacleXY
+		
+			addi $s2,$s2,1
+			j UpdateOddRowObstaclesX
 		IncrementSecondCounter:
 			addi $s5,$s5,4
 			li $s2, 0
@@ -778,7 +764,10 @@ MoveEvenRowObstacles:
 		j UpdateEvenRowObstaclesX
 		NormalizeXBy0:
 			addi $t0, $t0, 32
-			jr $ra
+			jal SaveObstacleXY
+		
+			addi $s2,$s2,1
+			j UpdateEvenRowObstaclesX
 		IncrementSecondCounter2:
 			addi $s5,$s5,4
 			li $s2, 0

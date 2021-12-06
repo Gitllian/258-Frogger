@@ -9,12 +9,12 @@
 # - Unit width in pixels: 8
 # - Unit height in pixels: 8
 # - Display width in pixels: 256
-# - Display height in pixels: 256
+# - Display height in pixels: 512
 # - Base Address for Display: 0x10008000 ($gp)
 #
 # Which milestone is reached in this submission?
 # (See the assignment handout for descriptions of the milestones)
-# - Milestone 1/2/3 
+# - Milestone 1/2/3/4
 #
 # Which approved additional features have been implemented?
 # (See the assignment handout for the list of additional features)
@@ -45,16 +45,15 @@
 	LogColour:		.word 0xdddaa000
 	HeartColour:		.word 0xffffffff
 	
-	WaterRegionLowerY:	.word 12
+	WaterRegionBottomY:	.word 16
+	WaterRegionMediumY:	.word 12
 	WaterRegionUpperY:	.word 8
 	
 	FrogX:			.space 4
 	FrogY:			.space 4
 	ObstacleLocX:		.space 48
 	ObstacleLocY:		.space 48
-	LogLocX:		.space 16
-	LogLocY:		.space 16
-	VehicleSpeed:		.word 1
+	FrogSpeed:		.space 8
 	ObstacleSpeed:		.space 16
 	GoalRegion:		.space 20
 	NumberOfLives:		.space 4
@@ -70,12 +69,24 @@
   main:
   	li $s7, 3 # lives remaining
   	li $s6, 5 # Goal regions left
-  	li $s5, 1 # current Level 
+  	li $s5, 2 # current Level 
   	sw $s5, CurrentLevel($zero)
+  	li $s1, 0	# index in speed array
   	li $s0, 1	# Odd row speed in level 1
-  	li $s1, 2	# even row speed in level 1
-  	li $s2, 2	# odd row speed in level 2
-  	li $s4, 3	# even row speed in level 2
+  	sw $s0, ObstacleSpeed($s1)
+  	addi $s1, $s1, 4
+  	
+  	li $s0, 2	# even row speed in level 1
+  	sw $s0, ObstacleSpeed($s1)
+  	addi $s1, $s1, 4
+  	
+  	li $s0, 2	# odd row speed in level 2
+  	sw $s0, ObstacleSpeed($s1)
+  	addi $s1, $s1, 4
+  	
+  	li $s0, 3	# even row speed in level 2
+  	sw $s0, ObstacleSpeed($s1)
+  	
   	ResetGame:
   	sw $s7, NumberOfLives($zero)
   	jal PrintMessages
@@ -188,6 +199,11 @@
 	li $t0, 16			# bottom right log X
 	jal SaveObstacleXY
 	
+	li $s0, 2
+	sw $s0, FrogSpeed($zero)
+	li $s1, 4
+	li $s2, 3
+	sw $s2, FrogSpeed($s1)
 	
 	UpdateEverySecond:
 		
@@ -218,6 +234,7 @@
 		j ResetGame
 	SecondLevel:
 		addi $s5, $s5, 1
+		jal ClearGoalRegion
 		sw $s5, CurrentLevel($zero)
 		bgt $s5, 2, EndGame
 		j ResetGame
@@ -349,7 +366,7 @@ DrawRegion:
 			jal TranslateCoord
 			
 			sw $t2, 0($t9)
-			add $t2, $t5, $zero
+			
 			jal WriteToCollisionArray
 			
 			jal RestoreAllTRegisters
@@ -370,7 +387,7 @@ TranslateCoord:
 		mult $t1, $s0		# multiply the y axis by 128
 		mflo $s2		# save the y axis into $s2
 		addi $s1, $zero, 4	# save 4 into $s1
-		mult $t0, $s1		# multiply the x axis by 128
+		mult $t0, $s1		# multiply the x axis by 4
 		mflo $s3		# save the x axis into $s3
 		add $t9, $s2, $s3	# add y axis and x axis 
 		lw $s4, displayAddress	# load the display address
@@ -419,26 +436,54 @@ MoveFrogInWater:
 		lw $s0, FrogX($zero)
 		lw $s1, FrogY($zero)
 		
-		lw $s2, WaterRegionLowerY
-		lw $s3, WaterRegionUpperY
-		beq $s1, $s2, MoveToLeft
-		beq $s1, $s3, MoveToRight
-		j ReturnFromFunction
+		lw $s2, WaterRegionUpperY
+		lw $s3, WaterRegionMediumY
+		lw $s4, WaterRegionBottomY
+		lw $s5, CurrentLevel($zero)
+		beq $s5, 2, Level2Move
+		Level1Move:
+			beq $s1, $s2, MoveToRight	# move to the right
+			beq $s1, $s3, MoveToLeft
+			j ReturnFromFunction
+		Level2Move:
+			beq $s1, $s2, MoveToLeft	# move to the left
+			beq $s1, $s3, MoveToRight
+			beq $s1, $s4, MoveToLeft	# move to the left
+			j ReturnFromFunction
 		MoveToLeft:
-			ble $s0, 0, ReturnFromFunction
-		
-			subi $s0, $s0, 2
-			sw $s0, FrogX($zero)
-		
-			j ReturnFromFunction
-		MoveToRight:
-			bge $s0, 28, ReturnFromFunction
-		
-			addi $s0, $s0, 1
-			sw $s0, FrogX($zero)
-		
-			j ReturnFromFunction
 	
+			beq $s5, 2, Level2Left
+			li $s7, 4
+			lw $s6, ObstacleSpeed($s7)
+			sub $s0, $s0, $s6
+			ble $s0, 0, ReturnFromFunction
+			sw $s0, FrogX($zero)
+			j ReturnFromFunction
+			
+			Level2Left:
+				li $s7, 12
+				lw $s6, ObstacleSpeed($s7)
+				sub $s0, $s0, $s6
+				ble $s0, 0, ReturnFromFunction
+				sw $s0, FrogX($zero)
+			
+				j ReturnFromFunction
+		MoveToRight:
+			beq $s5, 2, Level2Right
+			li $s7, 0
+			lw $s6, ObstacleSpeed($s7)
+			add $s0, $s0, $s6
+			bge $s0, 28, ReturnFromFunction
+			sw $s0, FrogX($zero)
+			j ReturnFromFunction
+			Level2Right:
+				li $s7, 8
+				lw $s6, ObstacleSpeed($s7)
+				add $s0, $s0, $s6
+				bge $s0, 28, ReturnFromFunction
+				sw $s0, FrogX($zero)
+			
+				j ReturnFromFunction
 	
 UpdateMoveLeft:
 	addi $sp, $sp, -4
@@ -451,10 +496,34 @@ UpdateMoveLeft:
 		
 		ble $s0, 0, ReturnFromFunction
 		
-		subi $s0, $s0, 2
-		sw $s0, FrogX($zero)
+		lw $s5, CurrentLevel($zero)	# Check the current level
+		beq $s5, 1, Level1SpeedLeft
+			li $s3, 4		# Level 2 Speed
+			lw $s2, FrogSpeed($s3)
+			sub $s0, $s0, $s2
+			blt, $s0, 0, SetXToZeroLeft
+				sw $s0, FrogX($zero)
+				j ReturnFromFunction
+				
+			SetXToZeroLeft:
+				li $s0, 0 
+				sw $s0, FrogX($zero)
 		
-		j ReturnFromFunction
+				j ReturnFromFunction
+		
+		Level1SpeedLeft:
+		
+			lw $s2, FrogSpeed($zero)
+			sub $s0, $s0, $s2
+			blt, $s0, 0, SetXToZeroLeft2
+				sw $s0, FrogX($zero)
+				j ReturnFromFunction
+				
+			SetXToZeroLeft2:
+				li $s0, 0 
+				sw $s0, FrogX($zero)
+		
+				j ReturnFromFunction
 				
 UpdateMoveRight:
 	addi $sp, $sp, -4
@@ -466,11 +535,33 @@ UpdateMoveRight:
 	
 		bge $s0, 28, ReturnFromFunction
 		
-		addi $s0, $s0, 2
-		sw $s0, FrogX($zero)
+		lw $s5, CurrentLevel($zero)	# Check the current level
+		beq $s5, 1, Level1SpeedRight
+			li $s3, 4		# Level 2 Speed
+			lw $s2, FrogSpeed($s3)
+			add $s0, $s0, $s2
+			bgt, $s0, 28, SetXToMaxRight
+				sw $s0, FrogX($zero)
+				j ReturnFromFunction
+				
+			SetXToMaxRight:
+				li $s0, 28
+				sw $s0, FrogX($zero)
 		
-		j ReturnFromFunction
+				j ReturnFromFunction
+		Level1SpeedRight:
 		
+			lw $s2, FrogSpeed($zero)
+			add $s0, $s0, $s2
+			bgt, $s0, 28, SetXToMaxRight2
+				sw $s0, FrogX($zero)
+				j ReturnFromFunction
+				
+			SetXToMaxRight2:
+				li $s0, 28
+				sw $s0, FrogX($zero)
+		
+				j ReturnFromFunction
 UpdateMoveUp:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
@@ -622,7 +713,15 @@ MoveOddRowObstacles:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
-		lw $s1, VehicleSpeed
+		lw $s0, CurrentLevel($zero)
+		
+		beq $s0, 1, Level1SpeedOdd
+		li $s7, 8
+		lw $s1, ObstacleSpeed($s7)
+		j MoveOddRow
+	Level1SpeedOdd:
+		lw $s1, ObstacleSpeed($zero)
+	MoveOddRow:
 		li $s2, 0		# First Counter from 0 to 1
 		li $s6, 32
 		li $s5, 0		# Second counter from {0, 4, 8}
@@ -651,9 +750,16 @@ MoveEvenRowObstacles:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
-		lw $s1, VehicleSpeed
-		sub $s1, $zero, $s1
-		subi $s1, $s1, 1
+		lw $s0, CurrentLevel($zero)
+		beq $s0, 1, Level1SpeedEven
+		li $s7, 12
+		lw $s1, ObstacleSpeed($s7)
+		j MoveEvenRow
+	Level1SpeedEven:
+		li $s7, 4
+		lw $s1, ObstacleSpeed($s7)
+	MoveEvenRow:
+		# sub $s1, $zero, $s1
 		li $s2, 0		# First Counter from 0 to 1
 		li $s6, 32
 		li $s5, 2		# Second counter from {2, 6, 10}
@@ -662,7 +768,7 @@ MoveEvenRowObstacles:
 		bgt $s5, 12, ReturnFromFunction
 		add $t2, $s2, $s5	# t2 = index
 		jal LoadObstacleXY
-		add $t0, $s1, $t0
+		sub $t0, $t0, $s1
 		div $t0, $s6
 		mfhi $t0
 		blt $t0, 0, NormalizeXBy0
@@ -690,7 +796,7 @@ RedrawAllGraphics:
 		li $t3, 0
 		li $t4, 32
 		li $t5, 0
-		jal DrawRegion	#GoalRegion Board
+		jal DrawRegion	#Top background bar Board
 		
 		li $t0, 4
 		li $t1, 8
@@ -888,11 +994,11 @@ WriteToCollisionArray:
 	addi $sp, $sp, -4
 	sw $ra, 0($sp) 
 	jal SaveAllSRegisters
-	# input t0 X coordinate t1 Y coordinate t2 value
+	# input t0 X coordinate t1 Y coordinate t5 value
 	jal TranslateCoord
 	lw $s0, displayAddress
 	sub $t9, $t9, $s0
-	sw $t2, Collision($t9)
+	sw $t5, Collision($t9)
 	j ReturnFromFunction
 	
 ClearCollisionArray:
@@ -932,9 +1038,6 @@ CheckFrogCollision:
 		addi $t0, $t0, 1
 		jal ReadFromCollisionArray
 		beq $t2, 1, ReturnFromFunction
-		
-		addi $t0, $t0, 1
-		jal ReadFromCollisionArray
 		j ReturnFromFunction
 		
 CheckFrogWin:
@@ -1097,6 +1200,14 @@ PrintMessages:
 			la $a0, LivesLeft1
 			syscall
 			j ReturnFromFunction
-		
-	
-		
+
+ClearGoalRegion:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+		li $s0, 0 	# goal region index
+		ClearRegion:
+		bgt $s0, 21, ReturnFromFunction
+		sw $zero, GoalRegion($s0)
+		addi $s0, $s0, 4
+		j ClearRegion

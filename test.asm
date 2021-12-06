@@ -18,14 +18,16 @@
 #
 # Which approved additional features have been implemented?
 # (See the assignment handout for the list of additional features)
-# 1. (fill in the feature, if any)
-# 2. (fill in the feature, if any)
-# 3. (fill in the feature, if any)
-# ... (add more if necessary)
+# 1. Hard feature:	Second Level after completing the first level
+# 2. Easy feature 1:	Add third row in both water and road region (in second level)
+# 3. Easy featrue 2:	Increase speed of vehicles and logs (in second level)
+# 4. Easy feature 3:	Display the number of lives both in message box and at the top of screen
+# 5. Easy feature 4:	Objects in different row moves in different speed (odd rows and even rows)
+# 6. Easy feature 5:	Make objects look like arcade version
 #
 # Any additional information that the TA needs to know:
-# - (write here, if any)
-#
+# - first level is 32x32 while second level is 40x32 (heightxwidth)
+# - Goal regions are separated by yellow borders (if collide with any border, frog dies)
 #####################################################################
 
 .data
@@ -51,13 +53,13 @@
 	
 	FrogX:			.space 4
 	FrogY:			.space 4
-	ObstacleLocX:		.space 48
-	ObstacleLocY:		.space 48
 	FrogSpeed:		.space 8
-	ObstacleSpeed:		.space 16
-	GoalRegion:		.space 20
 	NumberOfLives:		.space 4
 	CurrentLevel:		.word 4
+	ObstacleSpeed:		.space 16
+	GoalRegion:		.space 20
+	ObstacleLocX:		.space 48
+	ObstacleLocY:		.space 48
 	
 	
 	LivesLeft3:		.asciiz "You have 3 lives left!\n"
@@ -69,7 +71,7 @@
   main:
   	li $s7, 3 # lives remaining
   	li $s6, 5 # Goal regions left
-  	li $s5, 2 # current Level 
+  	li $s5, 1 # current Level 
   	sw $s5, CurrentLevel($zero)
   	li $s1, 0	# index in speed array
   	li $s0, 1	# Odd row speed in level 1
@@ -221,7 +223,7 @@
 		bge $t6, 1, WinGoalRegion
 		
 		li $v0, 32
-		li $a0, 500
+		li $a0, 400
 		syscall
 		j UpdateEverySecond
 	WinGoalRegion:
@@ -333,7 +335,7 @@ ReturnFromFunction:
   	addi $sp, $sp, 4
   	jr $ra
 
-# How to write a method
+# Function blueprint
 #  func1:
 #	addi $sp, $sp, -4
 #	sw $ra, 0($sp)
@@ -506,24 +508,21 @@ UpdateMoveLeft:
 				j ReturnFromFunction
 				
 			SetXToZeroLeft:
-				li $s0, 0 
-				sw $s0, FrogX($zero)
-		
-				j ReturnFromFunction
+				li $s0, 0
+				jr $ra
 		
 		Level1SpeedLeft:
-		
+			li $s5, 0
 			lw $s2, FrogSpeed($zero)
+			
 			sub $s0, $s0, $s2
-			blt, $s0, 0, SetXToZeroLeft2
+			blt, $s0, 0, SetXToZeroLeft1
 				sw $s0, FrogX($zero)
 				j ReturnFromFunction
 				
-			SetXToZeroLeft2:
-				li $s0, 0 
-				sw $s0, FrogX($zero)
-		
-				j ReturnFromFunction
+			SetXToZeroLeft1:
+				li $s0, 0
+				jr $ra
 				
 UpdateMoveRight:
 	addi $sp, $sp, -4
@@ -535,7 +534,8 @@ UpdateMoveRight:
 	
 		bge $s0, 28, ReturnFromFunction
 		
-		lw $s5, CurrentLevel($zero)	# Check the current level
+		lw $s5, CurrentLevel($zero)
+		
 		beq $s5, 1, Level1SpeedRight
 			li $s3, 4		# Level 2 Speed
 			lw $s2, FrogSpeed($s3)
@@ -550,7 +550,7 @@ UpdateMoveRight:
 		
 				j ReturnFromFunction
 		Level1SpeedRight:
-		
+			li $s2, 0
 			lw $s2, FrogSpeed($zero)
 			add $s0, $s0, $s2
 			bgt, $s0, 28, SetXToMaxRight2
@@ -589,15 +589,29 @@ UpdateMoveDown:
 		
 		lw $s1, FrogY($zero)
 		
-		bge $s1, 24, SetYMax
-		addi $s1, $s1, 4
-		sw $s1, FrogY($zero)
-		j ReturnFromFunction
+		lw $s5 CurrentLevel($zero)
+		beq $s5, 1, Level1Down
+		
+		bge $s1, 32, SetYMax
+			addi $s1, $s1, 4
+			sw $s1, FrogY($zero)
+			j ReturnFromFunction
 				
-		SetYMax:
-		li $s6, 28
-		sw $s6, FrogY($zero)
-		j ReturnFromFunction	
+			SetYMax:
+			li $s6, 36
+			sw $s6, FrogY($zero)
+			j ReturnFromFunction	
+		
+		Level1Down:
+			bge $s1, 24, SetYMax2
+			addi $s1, $s1, 4
+			sw $s1, FrogY($zero)
+			j ReturnFromFunction
+				
+			SetYMax2:
+			li $s6, 28
+			sw $s6, FrogY($zero)
+			j ReturnFromFunction	
 		
 SaveObstacleXY:
 	addi $sp, $sp, -4

@@ -32,20 +32,24 @@
 
 .data
 	displayAddress:		.word 0x10008000
-	Yellow:			.word 0x00fff000
-	Green:			.word 0x000fff00
-	Blue:			.word 0x00000fff
-	White:			.word 0x00ffffff
-	Purple:			.word 0x00ff0fff
-	VehicleColour:		.word 0x00ccaadd
-	Black:			.word 0x00000000
-	Colour1:		.word 0x000aafff
-	Colour2:		.word 0xbbb00fff
-	Colour3:		.word 0xdddaa000
-	Colour4:		.word 0x0cddaaff
-	Colour5:		.word 0x00aaaaaa
-	LogColour:		.word 0xdddaa000
-	HeartColour:		.word 0xffffffff
+	Yellow:			.word 0xffd541
+	SafeRegionColour:			.word 0x9cdb43
+	WaterRegionColour:			.word 0x00285cc4
+	RoadRegionColour:			.word 0x6d758d
+	StartRegionColour:			.word 0x9cdb43
+	VehicleColour:		.word 0xdf3e23
+	Black:			.word 0x5a4e44
+	Colour1:		.word 0x00285cc4
+	Colour2:		.word 0x00285cc4
+	Colour3:		.word 0x00285cc4
+	Colour4:		.word 0x00285cc4
+	Colour5:		.word 0x00285cc4
+	LogColour:		.word 0xbb7547
+	HeartColour:		.word 0x00df3e23
+	RoadLineColour:		.word 0xdae0ea
+	WheelColour:		.word 0x73172d
+	GrassColour:		.word 0x59c135
+	LogPatternColour:	.word 0xdba463
 	
 	WaterRegionBottomY:	.word 16
 	WaterRegionMediumY:	.word 12
@@ -71,7 +75,7 @@
   main:
   	li $s7, 3 # lives remaining
   	li $s6, 5 # Goal regions left
-  	li $s5, 1 # current Level 
+  	li $s5, 2 # current Level 
   	sw $s5, CurrentLevel($zero)
   	li $s1, 0	# index in speed array
   	li $s0, 1	# Odd row speed in level 1
@@ -107,15 +111,15 @@
 	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	li $t1, 20			# top right vehicle Y 
-	li $t0, 16			# top right vehicle X
+	li $t0, 8			# top right vehicle X
 	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	li $t1, 24			# bottom left vehicle Y 
-	li $t0, 2			# bottom left vehicle X
+	li $t0, 4			# bottom left vehicle X
 	jal SaveObstacleXY
 	addi $t2, $t2, 1	
 	li $t1, 24			# bottom right vehicle Y 
-	li $t0, 18			# bottom right vehicle X
+	li $t0, 16			# bottom right vehicle X
 	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	# Initialize the coordinates of Logs
@@ -124,11 +128,11 @@
 	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	li $t1, 8			# top right log Y 
-	li $t0, 16			# top right log X
+	li $t0, 14			# top right log X
 	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	li $t1, 12			# bottom left log Y 
-	li $t0, 0			# bottom left log X
+	li $t0, 2			# bottom left log X
 	jal SaveObstacleXY
 	addi $t2, $t2, 1	
 	li $t1, 12			# bottom right log Y 
@@ -148,27 +152,27 @@
 	
 	addi $t2, $t2, 1	
 	li $t1, 24			# top right car Y 
-	li $t0, 16			# top right car X
+	li $t0, 8			# top right car X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
 	li $t1, 28			# medium left car Y 
-	li $t0, 4			# medium left car X
+	li $t0, 8			# medium left car X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
 	li $t1, 28			# medium right car Y 
-	li $t0, 20			# medium right car X
+	li $t0, 16			# medium right car X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
 	li $t1, 32			# bottom left car Y 
-	li $t0, 0			# bottom left car X
+	li $t0, 2			# bottom left car X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
 	li $t1, 32			# bottom right car Y 
-	li $t0, 16			# bottom right car X
+	li $t0, 12			# bottom right car X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
@@ -178,7 +182,7 @@
 	
 	addi $t2, $t2, 1	
 	li $t1, 8			# top right log Y 
-	li $t0, 16			# top right log X
+	li $t0, 14			# top right log X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
@@ -198,7 +202,7 @@
 	
 	addi $t2, $t2, 1	
 	li $t1, 16			# bottom right log Y 
-	li $t0, 16			# bottom right log X
+	li $t0, 14			# bottom right log X
 	jal SaveObstacleXY
 	
 	
@@ -680,14 +684,45 @@ DrawVehicle:
 		add $s1,$zero, $t1
 		li $s6, 32
 		# input 	t0 Vehicle X coordinate, t1 Vehicle Y Coordinate
-		lw $t2, VehicleColour
+		lw $t2, WheelColour
 		add $t3, $t0, $zero
 		add $t0, $t1, $zero
-		addi $t1, $t1, 4
-		addi $t4, $t3, 5
-		
+		addi $t1, $t1, 1
+		addi $t4, $t3, 2
 		li $t5, 1
+		jal SaveAllTRegisters
 		jal DrawRegion
+		jal RestoreAllTRegisters
+		
+		addi $t3, $t3, 3
+		addi $t4, $t4, 3
+		jal SaveAllTRegisters
+		jal DrawRegion
+		jal RestoreAllTRegisters
+		
+		lw $t2, VehicleColour
+		addi $t0, $t0, 1
+		addi $t1, $t1, 2
+		subi $t3, $t3, 2
+		subi $t4, $t4, 1
+		jal SaveAllTRegisters
+		jal DrawRegion
+		jal RestoreAllTRegisters
+		
+		lw $t2, WheelColour
+		addi $t0, $t0, 2
+		addi $t1, $t1, 1
+		subi $t3, $t3, 1
+		subi $t4, $t4, 2
+		jal SaveAllTRegisters
+		jal DrawRegion
+		jal RestoreAllTRegisters
+		
+		addi $t3, $t3, 3
+		addi $t4, $t4, 3
+		jal SaveAllTRegisters
+		jal DrawRegion
+		jal RestoreAllTRegisters
 		j ReturnFromFunction
 		
 DrawLog:
@@ -705,7 +740,26 @@ DrawLog:
 		addi $t4, $t3, 10
 		
 		li $t5, 0
+		jal SaveAllTRegisters
 		jal DrawRegion
+		jal RestoreAllTRegisters
+		
+		lw $t2, LogPatternColour
+		addi $t0, $t0, 1
+		subi $t1, $t1, 2
+		addi $t3, $t3, 1
+		subi $t4, $t4, 4
+		jal SaveAllTRegisters
+		jal DrawRegion
+		jal RestoreAllTRegisters
+		
+		addi $t0, $t0, 2
+		addi $t1, $t1, 2
+		addi $t3, $t3, 3
+		addi $t4, $t4, 4
+		jal SaveAllTRegisters
+		jal DrawRegion
+		jal RestoreAllTRegisters
 		j ReturnFromFunction
 			
 MoveOddRowObstacles:
@@ -894,24 +948,30 @@ RedrawAllGraphics:
 		
 		beq $s5, 2, DrawSecondLevel
 		li $t1, 16
-		lw $t2, Blue
+		lw $t2, WaterRegionColour
 		li $t3, 0
 		li $t4, 32
 		li $t5, 1
 		jal DrawRegion	#WaterRegion
 		
 		li $t1, 20
-		lw $t2, Green
+		lw $t2, SafeRegionColour
 		li $t5, 0
 		jal DrawRegion	#SafeRegion
 		
+		jal GrassPattern
+		
 		li $t1, 28
-		lw $t2, White
+		lw $t2, RoadRegionColour
 		jal DrawRegion	#RoadRegion
 		
+		jal RoadPattern
+		
 		li $t1, 33
-		lw $t2, Purple
+		lw $t2, StartRegionColour
 		jal DrawRegion	#StartRegion
+		
+		jal GrassPattern2
 		
 		jal FillGoalRegion
 		jal DrawAllLives
@@ -924,24 +984,30 @@ RedrawAllGraphics:
 		
 		DrawSecondLevel:
 			li $t1, 20
-			lw $t2, Blue
+			lw $t2, WaterRegionColour
 			li $t3, 0
 			li $t4, 32
 			li $t5, 1
 			jal DrawRegion	#WaterRegion
 			
 			li $t1, 24
-			lw $t2, Green
+			lw $t2, SafeRegionColour
 			li $t5, 0
 			jal DrawRegion	#SafeRegion
 			
+			jal GrassPattern
+			
 			li $t1, 36
-			lw $t2, White
+			lw $t2, RoadRegionColour
 			jal DrawRegion	#RoadRegion
 			
+			jal RoadPattern
+			
 			li $t1, 40
-			lw $t2, Purple
+			lw $t2, StartRegionColour
 			jal DrawRegion	#StartRegion
+			
+			jal GrassPattern2
 		
 		jal FillGoalRegion
 		jal DrawAllLives
@@ -1216,3 +1282,171 @@ ClearGoalRegion:
 		sw $zero, GoalRegion($s0)
 		addi $s0, $s0, 4
 		j ClearRegion
+		
+RoadPattern:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+	jal SaveAllTRegisters
+		lw $s5, CurrentLevel($zero)
+		beq $s5, 2, Level2RoadPattern
+		li $t1, 24
+		jal DrawRoadPattern
+		jal RestoreAllTRegisters
+		j ReturnFromFunction
+	Level2RoadPattern:
+		li $t1, 28
+		jal DrawRoadPattern
+		li $t1, 32
+		jal DrawRoadPattern
+		jal RestoreAllTRegisters
+		j ReturnFromFunction
+		
+DrawRoadPattern:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+	jal SaveAllTRegisters
+		# input t1 for Y
+		lw $t2, RoadLineColour
+		li $t0, 0
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		
+		jal RestoreAllTRegisters
+		j ReturnFromFunction
+
+GrassPattern:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+	jal SaveAllTRegisters
+		lw $s5, CurrentLevel($zero)
+		beq $s5, 2, Level2GrassPattern
+		li $t1, 16
+		jal DrawGrassPattern
+		li $t1, 18
+		jal DrawGrassPattern
+		jal RestoreAllTRegisters
+		j ReturnFromFunction
+	Level2GrassPattern:
+		li $t1, 20
+		jal DrawGrassPattern
+		li $t1, 22
+		jal DrawGrassPattern
+		jal RestoreAllTRegisters
+		j ReturnFromFunction
+		
+GrassPattern2:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+	jal SaveAllTRegisters
+		lw $s5, CurrentLevel($zero)
+		beq $s5, 2, Level2GrassPattern2
+		li $t1, 29
+		jal DrawGrassPattern
+		li $t1, 31
+		jal DrawGrassPattern
+		jal RestoreAllTRegisters
+		j ReturnFromFunction
+	Level2GrassPattern2:
+	
+		li $t1, 37
+		jal DrawGrassPattern
+		li $t1, 39
+		jal DrawGrassPattern
+		jal RestoreAllTRegisters
+		j ReturnFromFunction
+		
+DrawGrassPattern:
+	addi $sp, $sp, -4
+	sw $ra, 0($sp) 
+	jal SaveAllSRegisters
+	jal SaveAllTRegisters
+		# input t1 for Y
+		lw $t2, GrassColour
+		li $t0, 0
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		
+		addi $t0, $t0, 4
+		jal DrawPixel
+
+		addi $t0, $t0, 2
+		jal DrawPixel
+
+
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 4
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 3
+		jal DrawPixel
+		addi $t0, $t0, 3
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		addi $t0, $t0, 2
+		jal DrawPixel
+		addi $t0, $t0, 3
+		jal DrawPixel
+
+		jal DrawPixel
+		addi $t0, $t0, 2
+		
+		jal DrawPixel
+		addi $t0, $t0, 1
+		jal DrawPixel
+		
+
+		
+		jal RestoreAllTRegisters
+		j ReturnFromFunction

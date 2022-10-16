@@ -75,7 +75,7 @@
   main:
   	li $s7, 3 # lives remaining
   	li $s6, 5 # Goal regions left
-  	li $s5, 2 # current Level 
+  	li $s5, 1 # current Level 
   	sw $s5, CurrentLevel($zero)
   	li $s1, 0	# index in speed array
   	li $s0, 1	# Odd row speed in level 1
@@ -86,11 +86,11 @@
   	sw $s0, ObstacleSpeed($s1)
   	addi $s1, $s1, 4
   	
-  	li $s0, 2	# odd row speed in level 2
+  	li $s0, 3	# odd row speed in level 2
   	sw $s0, ObstacleSpeed($s1)
   	addi $s1, $s1, 4
   	
-  	li $s0, 3	# even row speed in level 2
+  	li $s0, 2	# even row speed in level 2
   	sw $s0, ObstacleSpeed($s1)
   	
   	ResetGame:
@@ -115,7 +115,7 @@
 	jal SaveObstacleXY
 	addi $t2, $t2, 1
 	li $t1, 24			# bottom left vehicle Y 
-	li $t0, 4			# bottom left vehicle X
+	li $t0, 2			# bottom left vehicle X
 	jal SaveObstacleXY
 	addi $t2, $t2, 1	
 	li $t1, 24			# bottom right vehicle Y 
@@ -157,22 +157,22 @@
 	
 	addi $t2, $t2, 1	
 	li $t1, 28			# medium left car Y 
-	li $t0, 8			# medium left car X
+	li $t0, 4			# medium left car X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
 	li $t1, 28			# medium right car Y 
-	li $t0, 16			# medium right car X
+	li $t0, 26			# medium right car X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
 	li $t1, 32			# bottom left car Y 
-	li $t0, 2			# bottom left car X
+	li $t0, 18			# bottom left car X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
 	li $t1, 32			# bottom right car Y 
-	li $t0, 12			# bottom right car X
+	li $t0, 26			# bottom right car X
 	jal SaveObstacleXY
 	
 	addi $t2, $t2, 1	
@@ -209,7 +209,7 @@
 	li $s0, 2
 	sw $s0, FrogSpeed($zero)
 	li $s1, 4
-	li $s2, 3
+	li $s2, 4
 	sw $s2, FrogSpeed($s1)
 	
 	UpdateEverySecond:
@@ -228,7 +228,7 @@
 		bge $t6, 1, WinGoalRegion
 		
 		li $v0, 32
-		li $a0, 400
+		li $a0, 500
 		syscall
 		j UpdateEverySecond
 	WinGoalRegion:
@@ -463,31 +463,38 @@ MoveFrogInWater:
 			li $s7, 4
 			lw $s6, ObstacleSpeed($s7)
 			sub $s0, $s0, $s6
-			ble $s0, 0, ReturnFromFunction
+			ble $s0, 0, SetToZero
 			sw $s0, FrogX($zero)
+			j ReturnFromFunction
+			SetToZero:
+				li $s0, 0
+				sw $s0, FrogX($zero)
 			j ReturnFromFunction
 			
 			Level2Left:
 				li $s7, 12
 				lw $s6, ObstacleSpeed($s7)
 				sub $s0, $s0, $s6
-				ble $s0, 0, ReturnFromFunction
+				ble $s0, 0, SetToZero2
 				sw $s0, FrogX($zero)
-			
+				j ReturnFromFunction
+			SetToZero2:
+				li $s0, 0
+				sw $s0, FrogX($zero)
 				j ReturnFromFunction
 		MoveToRight:
 			beq $s5, 2, Level2Right
 			li $s7, 0
 			lw $s6, ObstacleSpeed($s7)
 			add $s0, $s0, $s6
-			bge $s0, 28, ReturnFromFunction
+			bge $s0, 29, ReturnFromFunction
 			sw $s0, FrogX($zero)
 			j ReturnFromFunction
 			Level2Right:
 				li $s7, 8
 				lw $s6, ObstacleSpeed($s7)
 				add $s0, $s0, $s6
-				bge $s0, 28, ReturnFromFunction
+				bge $s0, 29, ReturnFromFunction
 				sw $s0, FrogX($zero)
 			
 				j ReturnFromFunction
@@ -515,7 +522,7 @@ UpdateMoveLeft:
 		
 		Level1SpeedLeft:
 			
-			subi $s0, $s0, 2
+			subi $s0, $s0, 3
 			ble $s0, 0, SetToMin
 			sw $s0, FrogX($zero)
 			j ReturnFromFunction
@@ -543,7 +550,7 @@ UpdateMoveRight:
 				j ReturnFromFunction
 		Level1SpeedRight:
 			# lw $s2, FrogSpeed($zero)
-			addi $s0, $s0, 2
+			addi $s0, $s0, 3
 			bge $s0, 28, SetToMax
 				sw $s0, FrogX($zero)
 				j ReturnFromFunction
@@ -737,7 +744,7 @@ DrawLog:
 		add $t3, $t0, $zero
 		add $t0, $t1, $zero
 		addi $t1, $t1, 4
-		addi $t4, $t3, 10
+		addi $t4, $t3, 12
 		
 		li $t5, 0
 		jal SaveAllTRegisters
